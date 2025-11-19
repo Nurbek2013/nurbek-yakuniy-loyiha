@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>4 in One Pro – Timer, Sekundomer, Ob-havo, Todo</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 3.8rem;
+      background: linear-gradient(45deg, #fff, #ffd0f8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 3rem;
+      text-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .tabs {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 3rem;
+    }
+    .tab {
+      padding: 1.2rem 2.8rem;
+      border-radius: 50px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.3);
+      font-weight: bold;
+      font-size: 1.4rem;
+      cursor: pointer;
+      transition: all 0.4s ease;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    .tab.active {
+      background: linear-gradient(45deg, #ff6b6b, #feca57);
+      transform: translateY(-8px) scale(1.05);
+      box-shadow: 0 20px 40px rgba(255,107,107,0.5);
+    }
+    .card {
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(20px);
+      border-radius: 2.5rem;
+      padding: 3rem;
+      width: 100%;
+      max-width: 650px;
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+    .time-display {
+      font-size: 6rem;
+      font-weight: bold;
+      letter-spacing: 8px;
+      margin: 2rem 0;
+      font-family: 'Courier New', monospace;
+      text-shadow: 0 0 30px rgba(255,255,255,0.6);
+    }
+    .timer-inputs {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin: 2rem 0;
+    }
+    .timer-inputs input {
+      width: 100px;
+      padding: 1rem;
+      font-size: 2rem;
+      text-align: center;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 1rem;
+      color: white;
+    }
+    select, button {
+      padding: 1rem 2rem;
+      margin: 1rem;
+      border: none;
+      border-radius: 50px;
+      font-size: 1.3rem;
+      cursor: pointer;
+      background: linear-gradient(45deg, #ff9a9e, #fad0c4);
+      color: #333;
+      font-weight: bold;
+    }
+    .btn-play { background: linear-gradient(45deg, #1dd1a1, #10ac84); }
+    .btn-stop { background: linear-gradient(45deg, #ff6b6b, #ee5a52); }
+    .city-select { background: #fff; color: #333; }
+    .weather-big { font-size: 9rem; }
+  </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function App() {
+  const [tab, setTab] = useState("timer");
+
+  // Timer (soat:dakika:sekund)
+  const [hours, setHours] = useState(0);
+  const [minutes, setMinutes] = useState(5);
+  const [seconds, setSeconds] = useState(0);
+  const [totalSeconds, setTotalSeconds] = useState(300);
+  const [timerRunning, setTimerRunning] = useState(false);
+
+  // Sekundomer
+  const [stopwatch, setStopwatch] = useState(0);
+  const [swRunning, setSwRunning] = useState(false);
+
+  // Ob-havo
+  const [city, setCity] = useState("Toshkent");
+
+  // Todo
+  const [todos, setTodos] = useState([]);
+  const [todoText, setTodoText] = useState("");
+
+  const cities = {
+    "Toshkent": {temp: 18, desc: "Quyoshli", icon: "☀️"},
+    "Samarqand": {temp: 16, desc: "Bulutli", icon: "⛅"},
+    "Buxoro": {temp: 19, desc: "Quyoshli", icon: "☀️"},
+    "Fargʻona": {temp: 17, desc: "Yomgʻirli", icon: "🌧️"},
+    "Andijon": {temp: 15, desc: "Bulutli", icon: "☁️"},
+    "Namangan": {temp: 16, desc: "Quyoshli", icon: "☀️"},
+    "Qarshi": {temp: 20, desc: "Issiq", icon: "🔥"},
+    "Navoiy": {temp: 18, desc: "Shamolli", icon: "💨"},
+    "Termiz": {temp: 23, desc: "Juda issiq", icon: "🥵"},
+    "Nukus": {temp: 14, desc: "Sovuq", icon: "🧊"},
+    "Urganch": {temp: 17, desc: "Yaxshi", icon: "😊"},
+    "Jizzax": {temp: 17, desc: "Ochiq osmon", icon: "☀️"}
+  };
+
+  // Timer logikasi
+  useEffect(() => {
+    if (timerRunning && totalSeconds > 0) {
+      const id = setInterval(() => {
+        setTotalSeconds(t => t - 1);
+      }, 1000);
+      return () => clearInterval(id);
+    } else if (totalSeconds === 0) {
+      setTimerRunning(false);
+      alert("⏰ Vaqt tugadi!");
+    }
+  }, [timerRunning, totalSeconds]);
+
+  useEffect(() => {
+    setTotalSeconds(hours * 3600 + minutes * 60 + seconds);
+  }, [hours, minutes, seconds]);
+
+  // Sekundomer
+  useEffect(() => {
+    if (swRunning) {
+      const id = setInterval(() => setStopwatch(s => s + 10), 10);
+      return () => clearInterval(id);
+    }
+  }, [swRunning]);
+
+  const formatTime = (totalSecs) => {
+    const h = String(Math.floor(totalSecs / 3600)).padStart(2, '0');
+    const m = String(Math.floor((totalSecs % 3600) / 60)).padStart(2, '0');
+    const s = String(totalSecs % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
+
+  const formatStopwatch = (ms) => {
+    const h = String(Math.floor(ms / 3600000)).padStart(2, '0');
+    const m = String(Math.floor((ms % 3600000) / 60000)).padStart(2, '0');
+    const s = String(Math.floor((ms % 60000) / 1000)).padStart(2, '0');
+    const cs = String(Math.floor((ms % 1000) / 10)).padStart(2, '0');
+    return `${h}:${m}:${s}.${cs}`;
+  };
+
+  const addTodo = () => {
+    if (todoText.trim()) {
+      setTodos([...todos, {id: Date.now(), text: todoText, done: false}]);
+      setTodoText("");
+    }
+  };
+
+  return (
+    <>
+      <h1>4 in One Pro</h1>
+
+      <div className="tabs">
+        {["timer","stopwatch","weather","todo"].map(t => (
+          <div key={t} className={`tab ${tab===t?"active":""}`} onClick={()=>setTab(t)}>
+            {t==="timer"?"⏱ Timer": t==="stopwatch"?"⏱ Sekundomer": t==="weather"?"☁️ Ob-havo":"✔️ To-Do"}
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        {tab === "timer" && (
+          <>
+            <h2 style={{fontSize:"3rem", marginBottom:"2rem"}}>Timer</h2>
+            <div className="time-display">{formatTime(totalSeconds)}</div>
+            
+            <div className="timer-inputs">
+              <input type="number" min="0" max="23" placeholder="00" value={hours} onChange={e=>setHours(+e.target.value||0)} disabled={timerRunning}/>
+              <span style={{fontSize:"2rem", alignSelf:"center"}}>:</span>
+              <input type="number" min="0" max="59" placeholder="05" value={minutes} onChange={e=>setMinutes(+e.target.value||0)} disabled={timerRunning}/>
+              <span style={{fontSize:"2rem", alignSelf:"center"}}>:</span>
+              <input type="number" min="0" max="59" placeholder="00" value={seconds} onChange={e=>setSeconds(+e.target.value||0)} disabled={timerRunning}/>
+            </div>
+
+            <button className="btn-play" onClick={()=>setTimerRunning(!timerRunning)}>
+              {timerRunning ? "⏸ Pauza" : "▶ Start"}
+            </button>
+            <button className="btn-stop" onClick={()=>{setTimerRunning(false); setTotalSeconds(0); setHours(0); setMinutes(0); setSeconds(0);}}>
+              ↻ Tozalash
+            </button>
+          </>
+        )}
+
+        {tab === "stopwatch" && (
+          <>
+            <h2 style={{fontSize:"3rem", marginBottom:"2rem"}}>Sekundomer</h2>
+            <div className="time-display">{formatStopwatch(stopwatch)}</div>
+            <button className="btn-play" onClick={()=>setSwRunning(!swRunning)}>
+              {swRunning ? "⏸ Pauza" : "▶ Start"}
+            </button>
+            <button className="btn-stop" onClick={()=>{setStopwatch(0); setSwRunning(false);}}>
+              ↻ Noldan
+            </button>
+          </>
+        )}
+
+        {tab === "weather" && (
+          <>
+            <h2 style={{fontSize:"3rem"}}>Ob-havo</h2>
+            <select className="city-select" value={city} onChange={e=>setCity(e.target.value)}>
+              {Object.keys(cities).map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="weather-big">{cities[city].icon}</div>
+            <h3 style={{fontSize:"3rem", margin:"1rem"}}>{city}</h3>
+            <div style={{fontSize:"5rem", fontWeight:"bold"}}>{cities[city].temp}°C</div>
+            <p style={{fontSize:"1.8rem", marginTop:"1rem"}}>{cities[city].desc}</p>
+          </>
+        )}
+
+        {tab === "todo" && (
+          <>
+            <h2 style={{fontSize:"3rem", marginBottom:"2rem"}}>To-Do List</h2>
+            <div style={{display:"flex", justifyContent:"center", gap:"1rem"}}>
+              <input type="text" placeholder="Yangi vazifa..." value={todoText} onChange={e=>setTodoText(e.target.value)} onKeyPress={e=>e.key==="Enter"&&addTodo()} style={{padding:"1rem", width:"70%", borderRadius:"50px", background:"rgba(255,255,255,0.3)", border:"none", color:"white", fontSize:"1.2rem"}}/>
+              <button className="btn-play" onClick={addTodo}>+ Qo'shish</button>
+            </div>
+            <div style={{marginTop:"2rem", textAlign:"left"}}>
+              {todos.map(t => (
+                <div key={t.id} style={{padding:"1.2rem", background:"rgba(255,255,255,0.15)", margin:"0.8rem 0", borderRadius:"1rem", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                  <span onClick={()=>setTodos(todos.map(x=>x.id===t.id?{...x,done:!x.done}:x))} style={{textDecoration: t.done?"line-through":"none", cursor:"pointer", fontSize:"1.3rem"}}>
+                    {t.text}
+                  </span>
+                  <span style={{cursor:"pointer", fontSize:"1.5rem", color:"#ff6b6b"}} onClick={()=>setTodos(todos.filter(x=>x.id!==t.id))}>✕</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
